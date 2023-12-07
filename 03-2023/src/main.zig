@@ -31,22 +31,19 @@ fn processItems(items: []const u8, line_count: usize) void {
     var is_digit = false;
     var digits: u8 = 0;
     for (items, 0..) |item, idx| {
-        const row_idx = idx / line_count;
-        const col_idx = idx % line_count;
-        print("{d} - {d}", .{ row_idx, col_idx });
         if (std.ascii.isDigit(item)) {
             is_digit = true;
             digits = digits + 1;
         }
         if (is_digit and !std.ascii.isDigit(item)) {
             is_digit = false;
-            _ = isPartNumber(idx, digits, items);
+            _ = isPartNumber(idx, digits, items, line_count);
             digits = 0;
         }
     }
 }
 
-fn isPartNumber(idx: usize, digits: u8, items: []const u8) bool {
+fn isPartNumber(idx: usize, digits: u8, items: []const u8, line_count: usize) bool {
     // TODO: top and bottom
     var is_part_number = false;
     const first_digit_idx = idx - digits;
@@ -58,5 +55,24 @@ fn isPartNumber(idx: usize, digits: u8, items: []const u8) bool {
     if (items[idx] != '.') {
         is_part_number = true;
     }
+    // top
+    const row_idx = idx / line_count;
+    if (row_idx > 0) {
+        var digit_idx: u8 = 0;
+        while (digit_idx <= digits + 1) {
+            const item_idx = idx - digit_idx;
+            if (item_idx < (line_count * row_idx)) {
+                break;
+            }
+            const top_idx = item_idx - line_count;
+            if (items[top_idx] != '.') {
+                is_part_number = true;
+                break;
+            }
+            digit_idx = digit_idx + 1;
+        }
+    }
+    // bottom
+    print("{}", .{is_part_number});
     return is_part_number;
 }
