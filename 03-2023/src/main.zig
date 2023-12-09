@@ -24,55 +24,128 @@ pub fn main() !void {
         }
     }
 
-    processItems(line.items, line_count);
+    const total_part_numbers = try getTotalPartNumbers(line.items, line_count);
+
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("{}\n", .{total_part_numbers});
 }
 
-fn processItems(items: []const u8, line_count: usize) void {
-    var is_digit = false;
+fn getTotalPartNumbers(items: []const u8, line_count: usize) !u32 {
+    var total_part_numbers: u32 = 0;
     var digits: u8 = 0;
+    var is_part_number = false;
     for (items, 0..) |item, idx| {
+        const row = idx / line_count;
+        const col = idx % line_count;
         if (std.ascii.isDigit(item)) {
-            is_digit = true;
             digits = digits + 1;
-        }
-        if (is_digit and !std.ascii.isDigit(item)) {
-            is_digit = false;
-            _ = isPartNumber(idx, digits, items, line_count);
+            if (!is_part_number) {
+                is_part_number = is_part_number or isPartNumberTop(row, idx, line_count, items);
+                is_part_number = is_part_number or isPartNumberRight(col, line_count, idx, items);
+                is_part_number = is_part_number or isPartNumberBottom(row, line_count, items.len, idx, items);
+                is_part_number = is_part_number or isPartNumberLeft(col, idx, items);
+                is_part_number = is_part_number or isPartNumberTopRight(row, col, line_count, idx, items);
+                is_part_number = is_part_number or isPartNumberBottomRight(row, line_count, items.len, col, idx, items);
+                is_part_number = is_part_number or isPartNumberBottomLeft(row, line_count, items.len, col, idx, items);
+                is_part_number = is_part_number or isPartNumberTopLeft(row, col, idx, line_count, items);
+            }
+        } else if (digits > 0 and !std.ascii.isDigit(item)) {
+            if (is_part_number) {
+                const part_number = try std.fmt.parseInt(u32, items[idx - digits .. idx], 10);
+                total_part_numbers = total_part_numbers + part_number;
+            }
             digits = 0;
+            is_part_number = false;
+        }
+        if (digits > 0 and col == line_count - 1) {
+            if (is_part_number) {
+                const offset = 1;
+                const part_number = try std.fmt.parseInt(u32, items[idx - digits + offset .. idx + offset], 10);
+                total_part_numbers = total_part_numbers + part_number;
+            }
+            digits = 0;
+            is_part_number = false;
         }
     }
+    return total_part_numbers;
 }
 
-fn isPartNumber(idx: usize, digits: u8, items: []const u8, line_count: usize) bool {
-    // TODO: top and bottom
-    var is_part_number = false;
-    const first_digit_idx = idx - digits;
-    // left
-    if (first_digit_idx > 0 and items[first_digit_idx - 1] != '.') {
-        is_part_number = true;
+fn isPartNumberLeft(col: usize, idx: usize, items: []const u8) bool {
+    if (col == 0) {
+        return false;
     }
-    // right
-    if (items[idx] != '.') {
-        is_part_number = true;
+    const prev_item = items[idx - 1];
+    return isPart(prev_item);
+}
+
+fn isPartNumberRight(col: usize, line_count: usize, idx: usize, items: []const u8) bool {
+    if (col == line_count - 1) {
+        return false;
     }
-    // top
-    const row_idx = idx / line_count;
-    if (row_idx > 0) {
-        var digit_idx: u8 = 0;
-        while (digit_idx <= digits + 1) {
-            const item_idx = idx - digit_idx;
-            if (item_idx < (line_count * row_idx)) {
-                break;
-            }
-            const top_idx = item_idx - line_count;
-            if (items[top_idx] != '.') {
-                is_part_number = true;
-                break;
-            }
-            digit_idx = digit_idx + 1;
-        }
+    const next_item = items[idx + 1];
+    return isPart(next_item);
+}
+
+fn isPartNumberTop(row: usize, idx: usize, line_count: usize, items: []const u8) bool {
+    if (row == 0) {
+        return false;
     }
-    // bottom
-    print("{}", .{is_part_number});
-    return is_part_number;
+    const prev_item = items[idx - line_count];
+    return isPart(prev_item);
+}
+
+fn isPartNumberTopLeft(row: usize, col: usize, idx: usize, line_count: usize, items: []const u8) bool {
+    if (row == 0) {
+        return false;
+    }
+    if (col == 0) {
+        return false;
+    }
+    const prev_item = items[idx - line_count - 1];
+    return isPart(prev_item);
+}
+
+fn isPartNumberTopRight(row: usize, col: usize, line_count: usize, idx: usize, items: []const u8) bool {
+    if (row == 0) {
+        return false;
+    }
+    if (col == line_count - 1) {
+        return false;
+    }
+    const next_item = items[idx - line_count + 1];
+    return isPart(next_item);
+}
+
+fn isPartNumberBottom(row: usize, line_count: usize, items_len: usize, idx: usize, items: []const u8) bool {
+    if (row * line_count == items_len - line_count) {
+        return false;
+    }
+    const next_item = items[idx + line_count];
+    return isPart(next_item);
+}
+
+fn isPartNumberBottomLeft(row: usize, line_count: usize, items_len: usize, col: usize, idx: usize, items: []const u8) bool {
+    if (row * line_count == items_len - line_count) {
+        return false;
+    }
+    if (col == 0) {
+        return false;
+    }
+    const prev_item = items[idx + line_count - 1];
+    return isPart(prev_item);
+}
+
+fn isPartNumberBottomRight(row: usize, line_count: usize, items_len: usize, col: usize, idx: usize, items: []const u8) bool {
+    if (row * line_count == items_len - line_count) {
+        return false;
+    }
+    if (col == line_count - 1) {
+        return false;
+    }
+    const next_item = items[idx + line_count + 1];
+    return isPart(next_item);
+}
+
+fn isPart(item: u8) bool {
+    return !std.ascii.isDigit(item) and item != '.';
 }
